@@ -278,10 +278,7 @@ class ParticleFilter(InferenceModule):
         while q < numParticles % (len(legal)* (numParticles / len(legal))): # remainder
             self.particles.append(legal[q])
             q += 1
-
-
-            
-
+ 
     def observe(self, observation, gameState):
         """
         Update beliefs based on the given distance observation. Make
@@ -315,27 +312,38 @@ class ParticleFilter(InferenceModule):
         emissionModel = busters.getObservationDistribution(noisyDistance)
         pacmanPosition = gameState.getPacmanPosition()
         "*** YOUR CODE HERE ***"
-        if noisyDistance == None:
-            self.setGhostPosition(gameState, self.getJailPosition()) #ghost is captured and set to jail
-
-        beliefs = self.getBeliefDistribution()
-
-        for particle in beliefs:
-            beliefs[particle] = emissionModel[util.manhattanDistance(pacmanPosition, particle)] #calculates new weights
-            weightChecker = emissionModel[util.manhattanDistance(pacmanPosition, particle)]
-
-        if beliefs.totalCount == 0: #weigths 0
-            self.initializeUniformly(gameState)
-            observe(observation, gameState)
-
-        newList = []
-        i = 0
-        while i < self.numParticles:   #resamples
-            newList.append(util.sample(beliefs))
-            i += 1
+        
+        beliefs = util.Counter()
             
-        self.particles = newList
+        if noisyDistance is None:
+            for x in range(self.numParticles):
+                self.particles=[]
+                self.particles.append(self.getJailPosition())
+                
+        else:
+            for particle in self.particles:
+                newWeight = emissionModel[util.manhattanDistance(particle, pacmanPosition)]
+                beliefs[particle] += newWeight #calculates new weights
+                #weights.normalize()
 
+            if beliefs.totalCount() != 0: #weigths 0
+                self.particles = []
+                for part in range(self.numParticles):
+                    self.particles.append(util.sample(beliefs))
+            else:
+                self.initializeUniformly(gameState)
+        '''
+        beliefs = util.Counter()
+        if noisyDistance == None:
+            self.particles = [self.getJailPosition() for i in range(self.numParticles)]
+        else:
+            for particle in self.particles:
+                beliefs[particle] += emissionModel[util.manhattanDistance(particle, pacmanPosition)]
+            if beliefs.totalCount() != 0:
+                self.particles = [util.sample(beliefs) for i in range(self.numParticles)]
+            else:
+                self.initializeUniformly(gameState)
+        '''
     def elapseTime(self, gameState):
         """
         Update beliefs for a time step elapsing.
@@ -352,7 +360,10 @@ class ParticleFilter(InferenceModule):
         belief distribution
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        def utilSamplePD(inputP):
+            return util.sample(self.getPositionDistribution(self.setGhostPosition(gameState, inputP)))
+
+        self.particles=[utilSamplePD(p) for p in self.particles]
 
     def getBeliefDistribution(self):
         """
@@ -363,7 +374,9 @@ class ParticleFilter(InferenceModule):
         "*** YOUR CODE HERE ***"
         beliefs = util.Counter()
         for particle in self.particles:
-            beliefs[particle] = 1
+  
+            beliefs[particle] +=1
+           
         beliefs.normalize() 
         return beliefs
         
